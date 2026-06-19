@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>DocLens — AI PDF Summarizer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --ink: #1a1a1a;
+    --ink-secondary: #555;
+    --ink-muted: #999;
+    --surface: #fff;
+    --surface-2: #f7f6f3;
+    --surface-3: #f0ede8;
+    --accent: #2c5f8a;
+    --accent-light: #e8f0f7;
+    --accent-mid: #b8d0e8;
+    --success: #2d6a4f;
+    --success-light: #e8f5ee;
+    --danger: #9b1c1c;
+    --danger-light: #fef2f2;
+    --border: rgba(0,0,0,0.1);
+    --border-strong: rgba(0,0,0,0.18);
+    --radius: 10px;
+    --radius-lg: 16px;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--surface-2);
+    color: var(--ink);
+    min-height: 100vh;
+    line-height: 1.6;
+  }
+
+  /* NAV */
+  nav {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 2rem;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .nav-logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-decoration: none;
+  }
+  .nav-logo-mark {
+    width: 32px;
+    height: 32px;
+    background: var(--ink);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .nav-logo-mark svg { width: 18px; height: 18px; }
+  .nav-logo-text {
+    font-family: 'Instrument Serif', serif;
+    font-size: 20px;
+    color: var(--ink);
+    letter-spacing: -0.3px;
+  }
+  .nav-badge {
+    font-size: 11px;
+    background: var(--accent-light);
+    color: var(--accent);
+    border: 1px solid var(--accent-mid);
+    border-radius: 20px;
+    padding: 2px 8px;
+    font-weight: 500;
+  }
+
+  /* HERO */
+  .hero {
+    text-align: center;
+    padding: 72px 2rem 48px;
+    max-width: 680px;
+    margin: 0 auto;
+  }
+  .hero-eyebrow {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 16px;
+  }
+  .hero h1 {
+    font-family: 'Instrument Serif', serif;
+    font-size: clamp(36px, 6vw, 54px);
+    line-height: 1.15;
+    color: var(--ink);
+    letter-spacing: -0.5px;
+    margin-bottom: 16px;
+  }
+  .hero h1 em {
+    font-style: italic;
+    color: var(--accent);
+  }
+  .hero-sub {
+    font-size: 16px;
+    color: var(--ink-secondary);
+    max-width: 480px;
+    margin: 0 auto;
+    line-height: 1.65;
+  }
+
+  /* MAIN CARD */
+  .main-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    max-width: 680px;
+    margin: 0 auto 60px;
+    overflow: hidden;
+    box-shadow: 0 2px 24px rgba(0,0,0,0.06);
+  }
+
+  /* DROP ZONE */
+  .drop-zone {
+    border: 2px dashed var(--border-strong);
+    border-radius: var(--radius);
+    margin: 28px;
+    padding: 44px 24px;
+    text-align: center;
+    cursor: pointer;
+    position: relative;
+    transition: background 0.15s, border-color 0.15s;
+    background: var(--surface-2);
+  }
+  .drop-zone:hover, .drop-zone.drag-over {
+    background: var(--accent-light);
+    border-color: var(--accent);
+  }
+  .drop-zone input[type=file] {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    width: 100%;
+    height: 100%;
+    cursor: pointer;
+  }
+  .drop-icon {
+    width: 52px;
+    height: 52px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 16px;
+  }
+  .drop-icon svg { width: 26px; height: 26px; color: var(--accent); }
+  .drop-title { font-size: 16px; font-weight: 600; color: var(--ink); margin-bottom: 6px; }
+  .drop-sub { font-size: 14px; color: var(--ink-muted); }
+  .drop-sub span {
+    color: var(--accent);
+    font-weight: 500;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  /* FILE INFO */
+  .file-info {
+    display: none;
+    align-items: center;
+    gap: 14px;
+    margin: 0 28px 20px;
+    padding: 14px 16px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+  }
+  .file-icon {
+    width: 40px;
+    height: 40px;
+    background: var(--danger-light);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .file-icon svg { width: 22px; height: 22px; color: var(--danger); }
+  .file-meta { flex: 1; min-width: 0; }
+  .file-name { font-size: 14px; font-weight: 500; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .file-size { font-size: 12px; color: var(--ink-muted); margin-top: 2px; }
+  .file-remove {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--ink-muted);
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    border-radius: 6px;
+    transition: color 0.1s, background 0.1s;
+  }
+  .file-remove:hover { color: var(--danger); background: var(--danger-light); }
+  .file-remove svg { width: 18px; height: 18px; }
+
+  /* OPTIONS */
+  .options-section {
+    padding: 0 28px 24px;
+    border-top: 1px solid var(--border);
+    margin-top: 4px;
+  }
+  .options-label {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+    margin: 20px 0 10px;
+  }
+  .modes-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .mode-btn {
+    text-align: left;
+    padding: 12px 14px;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    cursor: pointer;
+    transition: all 0.12s;
+    font-family: 'Inter', sans-serif;
+  }
+  .mode-btn:hover { border-color: var(--accent-mid); background: var(--accent-light); }
+  .mode-btn.active { border-color: var(--accent); background: var(--accent-light); }
+  .mode-name { font-size: 14px; font-weight: 500; color: var(--ink); display: block; }
+  .mode-desc { font-size: 12px; color: var(--ink-muted); display: block; margin-top: 2px; }
+  .mode-btn.active .mode-name { color: var(--accent); }
+
+  /* CTA */
+  .cta-row { padding: 0 28px 28px; }
+  .cta-btn {
+    width: 100%;
+    padding: 14px;
+    font-size: 15px;
+    font-weight: 600;
+    font-family: 'Inter', sans-serif;
+    color: #fff;
+    background: var(--ink);
+    border: none;
+    border-radius: var(--radius);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: opacity 0.15s, transform 0.1s;
+    letter-spacing: 0.01em;
+  }
+  .cta-btn:hover:not(:disabled) { opacity: 0.88; }
+  .cta-btn:active:not(:disabled) { transform: scale(0.99); }
+  .cta-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .cta-btn svg { width: 18px; height: 18px; }
+
+  /* STATUS */
+  .status-bar {
+    display: none;
+    align-items: center;
+    gap: 12px;
+    margin: 0 28px 20px;
+    padding: 14px 16px;
+    background: var(--accent-light);
+    border: 1px solid var(--accent-mid);
+    border-radius: var(--radius);
+    font-size: 14px;
+    color: var(--accent);
+    font-weight: 500;
+  }
+  .spinner {
+    width: 18px;
+    height: 18px;
+    border: 2px solid var(--accent-mid);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.75s linear infinite;
+    flex-shrink: 0;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ERROR */
+  .error-box {
+    display: none;
+    margin: 0 28px 20px;
+    padding: 14px 16px;
+    background: var(--danger-light);
+    border: 1px solid #f5c6c6;
+    border-radius: var(--radius);
+    font-size: 14px;
+    color: var(--danger);
+    line-height: 1.55;
+  }
+
+  /* RESULT */
+  .result-panel {
+    display: none;
+    border-top: 1px solid var(--border);
+  }
+  .result-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 28px;
+    background: var(--surface-2);
+    border-bottom: 1px solid var(--border);
+  }
+  .result-header-left { display: flex; align-items: center; gap: 10px; }
+  .result-header-left svg { width: 18px; height: 18px; color: var(--accent); }
+  .result-title { font-size: 14px; font-weight: 600; color: var(--ink); }
+  .result-badge {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 9px;
+    border-radius: 20px;
+    background: var(--success-light);
+    color: var(--success);
+    border: 1px solid #a7d7b8;
+  }
+  .result-actions { display: flex; gap: 8px; }
+  .icon-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    font-family: 'Inter', sans-serif;
+    color: var(--ink-secondary);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 6px 12px;
+    cursor: pointer;
+    transition: background 0.1s, color 0.1s;
+  }
+  .icon-btn:hover { background: var(--surface-3); color: var(--ink); }
+  .icon-btn svg { width: 15px; height: 15px; }
+  .result-body { padding: 28px; }
+  #summary-text {
+    font-size: 15px;
+    color: var(--ink);
+    line-height: 1.8;
+    white-space: pre-wrap;
+  }
+
+  /* FOOTER / HOW IT WORKS */
+  .how-section {
+    max-width: 680px;
+    margin: 0 auto 80px;
+    padding: 0 2rem;
+  }
+  .how-title {
+    font-family: 'Instrument Serif', serif;
+    font-size: 26px;
+    color: var(--ink);
+    margin-bottom: 24px;
+    letter-spacing: -0.2px;
+  }
+  .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .step-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 20px;
+  }
+  .step-num {
+    width: 28px;
+    height: 28px;
+    background: var(--ink);
+    color: #fff;
+    border-radius: 50%;
+    font-size: 13px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 12px;
+  }
+  .step-head { font-size: 14px; font-weight: 600; color: var(--ink); margin-bottom: 4px; }
+  .step-body { font-size: 13px; color: var(--ink-muted); line-height: 1.55; }
+
+  /* FOOTER */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 20px 2rem;
+    text-align: center;
+    font-size: 13px;
+    color: var(--ink-muted);
+  }
+  footer a { color: var(--accent); text-decoration: none; }
+
+  @media (max-width: 600px) {
+    .hero { padding: 48px 1.25rem 32px; }
+    .main-card { margin: 0 1rem 40px; }
+    .drop-zone { margin: 20px; padding: 32px 16px; }
+    .file-info, .options-section, .cta-row, .error-box, .status-bar { margin-left: 20px; margin-right: 20px; }
+    .result-header { padding: 14px 20px; }
+    .result-body { padding: 20px; }
+    .modes-grid { grid-template-columns: 1fr; }
+    .steps { grid-template-columns: 1fr; }
+    .how-section { margin-bottom: 48px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a href="#" class="nav-logo">
+    <div class="nav-logo-mark">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
+        <line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="12" y2="17"/>
+      </svg>
+    </div>
+    <span class="nav-logo-text">DocLens</span>
+  </a>
+  <span class="nav-badge">Powered by Claude AI</span>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <p class="hero-eyebrow">AI document analysis</p>
+  <h1>Understand any PDF,<br /><em>instantly.</em></h1>
+  <p class="hero-sub">Upload a PDF and Claude AI reads it end-to-end — giving you a clear, accurate summary in seconds. No sign-up required.</p>
+</section>
+
+<!-- MAIN CARD -->
+<div class="main-card">
+
+  <!-- Drop zone -->
+  <div class="drop-zone" id="drop-zone">
+    <input type="file" accept="application/pdf" id="file-input" />
+    <div class="drop-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+        <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+      </svg>
+    </div>
+    <div class="drop-title">Drop your PDF here</div>
+    <div class="drop-sub">or <span>click to browse</span> · max 20 MB</div>
+  </div>
+
+  <!-- File info -->
+  <div class="file-info" id="file-info">
+    <div class="file-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
+      </svg>
+    </div>
+    <div class="file-meta">
+      <div class="file-name" id="fname">—</div>
+      <div class="file-size" id="fsize">—</div>
+    </div>
+    <button class="file-remove" id="remove-btn" title="Remove file">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+      </svg>
+    </button>
+  </div>
+
+  <!-- Options -->
+  <div class="options-section">
+    <div class="options-label">Summary style</div>
+    <div class="modes-grid">
+      <button class="mode-btn active" data-mode="concise">
+        <span class="mode-name">Concise</span>
+        <span class="mode-desc">2–4 paragraph overview</span>
+      </button>
+      <button class="mode-btn" data-mode="detailed">
+        <span class="mode-name">Detailed</span>
+        <span class="mode-desc">Full coverage of all sections</span>
+      </button>
+      <button class="mode-btn" data-mode="bullets">
+        <span class="mode-name">Key bullet points</span>
+        <span class="mode-desc">Structured takeaways</span>
+      </button>
+      <button class="mode-btn" data-mode="executive">
+        <span class="mode-name">Executive brief</span>
+        <span class="mode-desc">Purpose, findings & actions</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- CTA -->
+  <div class="cta-row">
+    <button class="cta-btn" id="analyze-btn" disabled>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+      </svg>
+      Analyze &amp; summarize
+    </button>
+  </div>
+
+  <!-- Status -->
+  <div class="status-bar" id="status-bar">
+    <div class="spinner"></div>
+    <span id="status-msg">Reading your PDF…</span>
+  </div>
+
+  <!-- Error -->
+  <div class="error-box" id="error-box"></div>
+
+  <!-- Result -->
+  <div class="result-panel" id="result-panel">
+    <div class="result-header">
+      <div class="result-header-left">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+        </svg>
+        <span class="result-title">AI summary</span>
+        <span class="result-badge" id="mode-badge">Concise</span>
+      </div>
+      <div class="result-actions">
+        <button class="icon-btn" id="copy-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+          </svg>
+          Copy
+        </button>
+        <button class="icon-btn" id="download-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          Save
+        </button>
+      </div>
+    </div>
+    <div class="result-body">
+      <div id="summary-text"></div>
+    </div>
+  </div>
+
+</div><!-- /main-card -->
+
+<!-- HOW IT WORKS -->
+<section class="how-section">
+  <h2 class="how-title">How it works</h2>
+  <div class="steps">
+    <div class="step-card">
+      <div class="step-num">1</div>
+      <div class="step-head">Upload your PDF</div>
+      <div class="step-body">Drop or browse any PDF up to 20 MB — research, contracts, reports, anything.</div>
+    </div>
+    <div class="step-card">
+      <div class="step-num">2</div>
+      <div class="step-head">Choose a style</div>
+      <div class="step-body">Pick concise, detailed, bullet points, or executive brief depending on what you need.</div>
+    </div>
+    <div class="step-card">
+      <div class="step-num">3</div>
+      <div class="step-head">Get your summary</div>
+      <div class="step-body">Claude reads the full document and returns an accurate, structured summary in seconds.</div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  Built with <a href="https://www.anthropic.com" target="_blank">Claude AI</a> · Your PDF is never stored
+</footer>
+
+<script>
+  const ANTHROPIC_API_KEY = 'YOUR_API_KEY_HERE'; // Replace with your key
+
+  const modePrompts = {
+    concise:   'Provide a concise summary of this document in 2-4 paragraphs. Capture the main purpose, key ideas, and findings clearly.',
+    detailed:  'Provide a thorough, detailed summary of this document. Cover all major sections, arguments, data points, and conclusions. Use clear structure.',
+    bullets:   'Summarize this document as structured bullet points. Group related points under short bold headings. Be specific and informative.',
+    executive: 'Write a crisp executive brief:\n• One-sentence purpose\n• 3–5 key findings or takeaways\n• Any recommended actions or decisions'
+  };
+  const modeLabels = { concise: 'Concise', detailed: 'Detailed', bullets: 'Bullet points', executive: 'Executive brief' };
+
+  let selectedMode = 'concise';
+  let base64Data = null;
+  let currentSummary = '';
+
+  const dropZone     = document.getElementById('drop-zone');
+  const fileInput    = document.getElementById('file-input');
+  const fileInfo     = document.getElementById('file-info');
+  const fname        = document.getElementById('fname');
+  const fsize        = document.getElementById('fsize');
+  const removeBtn    = document.getElementById('remove-btn');
+  const analyzeBtn   = document.getElementById('analyze-btn');
+  const statusBar    = document.getElementById('status-bar');
+  const statusMsg    = document.getElementById('status-msg');
+  const errorBox     = document.getElementById('error-box');
+  const resultPanel  = document.getElementById('result-panel');
+  const summaryText  = document.getElementById('summary-text');
+  const modeBadge    = document.getElementById('mode-badge');
+  const copyBtn      = document.getElementById('copy-btn');
+  const downloadBtn  = document.getElementById('download-btn');
+
+  // Mode selection
+  document.querySelectorAll('.mode-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      selectedMode = btn.dataset.mode;
+    });
+  });
+
+  // File handling
+  fileInput.addEventListener('change', e => { if (e.target.files[0]) handleFile(e.target.files[0]); });
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.classList.remove('drag-over');
+    const f = e.dataTransfer.files[0];
+    if (f?.type === 'application/pdf') handleFile(f);
+    else showError('Please drop a PDF file.');
+  });
+  removeBtn.addEventListener('click', resetFile);
+
+  function handleFile(file) {
+    if (file.size > 20 * 1024 * 1024) { showError('File is too large. Please upload a PDF under 20 MB.'); return; }
+    hideError();
+    resultPanel.style.display = 'none';
+    fname.textContent = file.name;
+    fsize.textContent = (file.size / 1024 / 1024).toFixed(2) + ' MB';
+    fileInfo.style.display = 'flex';
+    analyzeBtn.disabled = true;
+
+    const reader = new FileReader();
+    reader.onload = ev => {
+      base64Data = ev.target.result.split(',')[1];
+      analyzeBtn.disabled = false;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function resetFile() {
+    base64Data = null;
+    fileInput.value = '';
+    fileInfo.style.display = 'none';
+    analyzeBtn.disabled = true;
+    resultPanel.style.display = 'none';
+    hideError();
+  }
+
+  function showError(msg) { errorBox.textContent = msg; errorBox.style.display = 'block'; }
+  function hideError() { errorBox.style.display = 'none'; }
+
+  // Analyze
+  analyzeBtn.addEventListener('click', async () => {
+    if (!base64Data) return;
+    hideError();
+    resultPanel.style.display = 'none';
+    statusBar.style.display = 'flex';
+    analyzeBtn.disabled = true;
+
+    const msgs = ['Reading your PDF…', 'Analyzing content…', 'Generating summary…', 'Almost done…'];
+    let mi = 0;
+    statusMsg.textContent = msgs[0];
+    const interval = setInterval(() => { mi = Math.min(mi + 1, msgs.length - 1); statusMsg.textContent = msgs[mi]; }, 2000);
+
+    try {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': ANTHROPIC_API_KEY,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true'
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-6',
+          max_tokens: 1500,
+          messages: [{
+            role: 'user',
+            content: [
+              { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64Data } },
+              { type: 'text', text: modePrompts[selectedMode] }
+            ]
+          }]
+        })
+      });
+
+      clearInterval(interval);
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error?.message || `API error ${res.status}`);
+      }
+
+      const data = await res.json();
+      const text = data.content?.map(b => b.text || '').join('\n').trim();
+      if (!text) throw new Error('No summary returned. Please try again.');
+
+      currentSummary = text;
+      summaryText.textContent = text;
+      modeBadge.textContent = modeLabels[selectedMode];
+      statusBar.style.display = 'none';
+      resultPanel.style.display = 'block';
+      resultPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    } catch (err) {
+      clearInterval(interval);
+      statusBar.style.display = 'none';
+      showError('Something went wrong: ' + err.message);
+    } finally {
+      analyzeBtn.disabled = false;
+    }
+  });
+
+  // Copy
+  copyBtn.addEventListener('click', () => {
+    navigator.clipboard.writeText(currentSummary).then(() => {
+      copyBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px"><polyline points="20 6 9 17 4 12"/></svg> Copied`;
+      setTimeout(() => {
+        copyBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy`;
+      }, 2000);
+    });
+  });
+
+  // Download summary as .txt
+  downloadBtn.addEventListener('click', () => {
+    const blob = new Blob([currentSummary], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'summary.txt';
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+</script>
+</body>
+</html>
